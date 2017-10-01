@@ -1,11 +1,7 @@
 ## genClsBin.py
 
-## tensorboard? localhost:6006 to get there
-
 import numpy as np
 import tensorflow as tf
-
-#np.random.seed(65)
 
 ##########################
 ## function definitions ##
@@ -16,36 +12,38 @@ def eNet(alpha, lam, v):
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
 
-def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
+def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
     np.random.seed(seed)
 ######################
 ## model parameters ##
 ######################
-    gamma = 10         # cadre-assignment sharpness parameter
-
-    Tmax = 10000 # number of iterations
+    gamma = 10          # cadre-assignment sharpness parameter
+    Tmax = 10000        # number of iterations
     recd = Tmax // 100  # interval for record-keeping in sgd 
-    eta  = 1e-3 # step length
-    Nba  = 50   # minibatch size for SGD
-#    Nba = 900
-    eps  = 1e-3 # tolerance criterion
-#    eps = 1e-4
+    eta  = 1e-3         # SGD step length
+    Nba  = 50           # minibatch size for SGD
+    eps  = 1e-3         # tolerance criterion
     
-    Ntr, P = Xtr.shape
+    Ntr, P = Xtr.shape  # number of (training observations, features)
 
-    errTr, errVa = [], []
+    errTr, errVa = [], [] # used to store training and validation errors
 ############################################
 ## tensorflow parameters and placeholders ##
 ############################################
     tf.reset_default_graph()
 
+    ## cadre centers parameter
     C  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
                  dtype=tf.float64, name='C')
+    ## cadre determination weights parameter
     d  = tf.Variable(np.random.uniform(size=(P)), dtype=tf.float64, name='d')
-    Theta  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
-                     dtype=tf.float64, name='Theta')
-    Theta0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), dtype=tf.float64,
-                     name='Theta0')
+    ## regression hyperplane weights parameter
+    W  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
+                     dtype=tf.float64, name='W')
+    ## regression hyperplane bias parameter
+    W0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), dtype=tf.float64,
+                     name='W0')
+    ## model error parameter
     sigma = tf.Variable(0.1, dtype=tf.float64, name='sigma')
 
     X = tf.placeholder(dtype=tf.float64, shape=(None,P), name='X')
@@ -82,7 +80,6 @@ def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
 ####################
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-#        tf.local_variables_initialize
         
         sess.run(tf.local_variables_initializer())
     
@@ -90,7 +87,7 @@ def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         for t in range(Tmax):
             inds = np.random.choice(Ntr, Nba, replace=False)      
             sess.run(optimizer,  feed_dict={X: Xtr[inds,:],
-                                       Y   : Ytr[inds]})
+                                            Y: Ytr[inds]})
             # record-keeping        
             if not t % recd:
                 errTr.append(L.eval(feed_dict={
@@ -102,35 +99,23 @@ def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
                 if len(errTr) > 2 and np.abs(errTr[-1] - errTr[-2]) < eps:
                     break
     
-        ## calculate final predictions
+        ## calculate target predictions
         FeTr = F.eval(feed_dict={X: Xtr,
                                  Y: Ytr})
         FeVa = F.eval(feed_dict={X: Xva,
                                  Y: Yva})
+        ## calculate cadre identity predictions
         mTr = bstCd.eval(feed_dict={X: Xtr,
                                     Y: Ytr})
         mVa = bstCd.eval(feed_dict={X: Xva,
                                     Y: Yva})
+        ## calculate cadre membership weights
         GeTr = G.eval(feed_dict={X: Xtr, Y: Ytr})
         GeVa = G.eval(feed_dict={X: Xva, Y: Yva})
-        ## get descriptive statistics about each cadre
-#        cadMeansTr, cadMeansVa = np.zeros((M,P)), np.zeros((M,P))
-#        cadVarisTr, cadVarisVa = np.zeros((M,P)), np.zeros((M,P))
-#        cadCounts = np.zeros(shape=(M,2))
-#        for m in range(M):
-#            cadCounts[m,0], cadCounts[m,1] = np.sum(mTr==m), np.sum(mVa==m)
-#            if sum(mTr==m):
-#                cadMeansTr[m,:] = np.mean(Xtr[mTr==m,:], axis=0)
-#                cadVarisTr[m,:] = np.var(Xtr[mTr==m,:], axis=0)
-#            if sum(mVa==m):
-#                cadMeansVa[m,:] = np.mean(Xva[mVa==m,:], axis=0)
-#                cadVarisVa[m,:] = np.var(Xva[mVa==m,:], axis=0)
-#        GeVa = G.eval(feed_dict={Xcad: Xva[:,cadFts],
-#                             Xtar: Xva[:,tarFts],
-#                             Y   : Yva})
 
+        ## evaluate optimal parameters
         Ce, de, Te, Te0, Se = C.eval(), d.eval(), Theta.eval(), Theta0.eval(), sigma.eval()
 
-        things = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
-                  'C': Ce, 'd': de, 'T': Te, 'T0': Te0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
-    return things
+        modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
+                       'C': Ce, 'd': de, 'T': Te, 'T0': Te0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
+    return modelOutput
