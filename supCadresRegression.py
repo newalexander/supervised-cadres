@@ -1,11 +1,8 @@
-## genClsBin.py
+## supCadresRegression.py
+## author: Alexander New
 
 import numpy as np
 import tensorflow as tf
-
-##########################
-## function definitions ##
-##########################
 
 ## elastic net penalty
 def eNet(alpha, lam, v):
@@ -13,6 +10,25 @@ def eNet(alpha, lam, v):
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
 
 def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
+    """Use stochastic gradient descent to learn a cadre regression model.
+    Arguments: Xtr: matrix of training observations
+               Ytr: matrix (one column) of training target values
+               Xva: matrix of validation observations
+               Yva: matrix (one column) of validation target values
+               M:   number of cadres
+               alpha: list of elastic net mixing hyperparameters for d, W
+                      (alpha = 0 is LASSO, alpha = 1 is ridge)
+               lam: list of regularization strength hyperparameters for d, W
+               seed: prng seed for numpy
+    Returns: dict with entries
+               'fTr': training predictions
+               'fVa': validation predictions
+               'mTr': cadre assignments for training data
+               'mVa': cadre assignments for validation data
+               'loss': loss function values for training, validation data
+               'C', 'd', 'W', 'W0', 's': optimal model parameters
+               'Gtr', 'Gva': matrices of cadre membership weights
+    """
     np.random.seed(seed)
 ######################
 ## model parameters ##
@@ -80,8 +96,6 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
 ####################
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-        
-        sess.run(tf.local_variables_initializer())
     
         ## perform optimization
         for t in range(Tmax):
@@ -119,3 +133,45 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
                        'C': Ce, 'd': de, 'T': Te, 'T0': Te0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
     return modelOutput
+
+def applyToObs(params, Xnew):
+    """Apply a cadre model to a new set of observations
+    Arguments: params: dict with entries 'C', 'd', 'W', 'W0'
+               Xnew: matrix of new observations
+    Returns: dict with entries 'F': predicted values
+                               'G': cadre membership weights
+                               'm': cadre assignments
+    """
+    gamma = 10        # cadre assignment sharpness parameter
+    P = Xnew.shape[1] # number of features
+    ## load model information and set up input placeholder
+    tf.reset_default_graph()
+    C  = tf.Variable(params['C'], dtype=tf.float64, name='C')
+    d  = tf.Variable(params['d'], dtype=tf.float64, name='d')
+    W  = tf.Variable(params['W'], dtype=tf.float64, name='W')
+    W0 = tf.Variable(params['W0'], dtype=tf.float64, name='W0')
+    X = tf.placeholder(dtype=tf.float64, shape=(None,P), name='X')
+    
+    ## T[n,m] = ||x^n - c^m||^2_D
+    T = tf.einsum('npm,p->nm', 
+              tf.square(tf.map_fn(lambda x: tf.expand_dims(x,1) - C, X)), 
+              tf.abs(d))
+
+    ## G[n,m] = g_m(x^n)
+    ##        = 1 / sum_m' exp(gamma(T[n,m] - T[n,m']))
+    G = 1 / tf.map_fn(lambda t: 
+                  tf.reduce_sum(tf.exp(gamma*(tf.expand_dims(t,1) - 
+                                tf.expand_dims(t,0))), axis=1), T, name='G')                 
+
+    ## E[n,m] = e_m(x^n)
+    E = tf.add(tf.matmul(X, W), W0, name='E')
+    
+    ## f[n] = f(x^n)
+    F = tf.reduce_sum(G * E, axis=1, name='F') # this won't work if minibatch size 1 is used
+    bstCd = tf.argmax(G, axis=1, name='bestCadre')
+    
+    with tf.Session() as sess:
+        tf.global_variables_initializer().run()
+        Fnew, Gnew, mNew = sess.run([F, G, bstCd], feed_dict={X: Xnew})
+    predictionOutput = {'F': Fnew, 'G': Gnew, 'm': mNew}
+    return predictionOutput
