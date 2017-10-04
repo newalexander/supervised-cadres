@@ -133,7 +133,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         Ce, de, We, W0e, Se = C.eval(), d.eval(), W.eval(), W0.eval(), sigma.eval()
 
         modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
-                       'C': Ce, 'd': de, 'W': We, 'T0': We0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
+                       'C': Ce, 'd': de, 'W': We, 'T0': W0e, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
     return modelOutput
 
 def applyToObs(params, Xnew):
