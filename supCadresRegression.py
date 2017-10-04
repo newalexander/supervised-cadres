@@ -28,7 +28,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
                'mTr': cadre assignments for training data
                'mVa': cadre assignments for validation data
                'loss': loss function values for training, validation data
-               'C', 'd', 'W', 'W0', 's': optimal model parameters
+               'C', 'd', 'W', 'w0', 's': optimal model parameters
                'Gtr', 'Gva': matrices of cadre membership weights
     """
     np.random.seed(seed)
@@ -59,7 +59,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
     W  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
                      dtype=tf.float64, name='W')
     ## regression hyperplane bias parameter
-    W0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), dtype=tf.float64,
+    w0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), dtype=tf.float64,
                      name='W0')
     ## model error parameter
     sigma = tf.Variable(0.1, dtype=tf.float64, name='sigma')
@@ -80,7 +80,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
                                          tf.expand_dims(t,0))), axis=1), T, name='G')                 
 
     ## E[n,m] = e_m(x^n)
-    E = tf.add(tf.matmul(X, W), W0, name='E')
+    E = tf.add(tf.matmul(X, W), w0, name='E')
     
     ## f[n] = f(x^n)
     F = tf.reduce_sum(G * E, axis=1, name='F') # this won't work if minibatch size 1 is used
@@ -130,15 +130,15 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         GeVa = G.eval(feed_dict={X: Xva, Y: Yva})
 
         ## evaluate optimal parameters
-        Ce, de, We, W0e, Se = C.eval(), d.eval(), W.eval(), W0.eval(), sigma.eval()
+        Ce, de, We, w0e, Se = C.eval(), d.eval(), W.eval(), W0.eval(), sigma.eval()
 
         modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
-                       'C': Ce, 'd': de, 'W': We, 'T0': W0e, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
+                       'C': Ce, 'd': de, 'W': We, 'w0': w0e, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
     return modelOutput
 
 def applyToObs(params, Xnew):
     """Apply a cadre model to a new set of observations
-    Arguments: params: dict with entries 'C', 'd', 'W', 'W0'
+    Arguments: params: dict with entries 'C', 'd', 'W', 'w0'
                Xnew: matrix of new observations
     Returns: dict with entries 'F': predicted values
                                'G': cadre membership weights
@@ -151,7 +151,7 @@ def applyToObs(params, Xnew):
     C  = tf.Variable(params['C'], dtype=tf.float64, name='C')
     d  = tf.Variable(params['d'], dtype=tf.float64, name='d')
     W  = tf.Variable(params['W'], dtype=tf.float64, name='W')
-    W0 = tf.Variable(params['W0'], dtype=tf.float64, name='W0')
+    w0 = tf.Variable(params['w0'], dtype=tf.float64, name='w0')
     X = tf.placeholder(dtype=tf.float64, shape=(None,P), name='X')
     
     ## T[n,m] = ||x^n - c^m||^2_D
@@ -166,7 +166,7 @@ def applyToObs(params, Xnew):
                                 tf.expand_dims(t,0))), axis=1), T, name='G')                 
 
     ## E[n,m] = e_m(x^n)
-    E = tf.add(tf.matmul(X, W), W0, name='E')
+    E = tf.add(tf.matmul(X, W), w0, name='E')
     
     ## f[n] = f(x^n)
     F = tf.reduce_sum(G * E, axis=1, name='F') # this won't work if minibatch size 1 is used
