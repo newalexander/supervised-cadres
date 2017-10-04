@@ -80,14 +80,14 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
                                          tf.expand_dims(t,0))), axis=1), T, name='G')                 
 
     ## E[n,m] = e_m(x^n)
-    E = tf.add(tf.matmul(X, Theta), Theta0, name='E')
+    E = tf.add(tf.matmul(X, W), W0, name='E')
     
     ## f[n] = f(x^n)
     F = tf.reduce_sum(G * E, axis=1, name='F') # this won't work if minibatch size 1 is used
 
     ## L = 1 / N sum_n sum_m g_m(x^n) * (e_m(x^n) - y_n) ^2
     L = tf.add(tf.reduce_mean(tf.reduce_sum(G * (E - Y) **2, axis=1)) / 2 / sigma**2,
-         (eNet(alpha[0], lam[0], d) + eNet(alpha[1], lam[1], Theta)) / 2 / N / sigma**2 +
+         (eNet(alpha[0], lam[0], d) + eNet(alpha[1], lam[1], W)) / 2 / N / sigma**2 +
          (1/2 - 1/N) * tf.log(sigma**2), name='L')
 
     bstCd = tf.argmax(G, axis=1, name='bestCadre')
@@ -130,10 +130,10 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         GeVa = G.eval(feed_dict={X: Xva, Y: Yva})
 
         ## evaluate optimal parameters
-        Ce, de, Te, Te0, Se = C.eval(), d.eval(), Theta.eval(), Theta0.eval(), sigma.eval()
+        Ce, de, We, W0e, Se = C.eval(), d.eval(), W.eval(), W0.eval(), sigma.eval()
 
         modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
-                       'C': Ce, 'd': de, 'T': Te, 'T0': Te0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
+                       'C': Ce, 'd': de, 'W': We, 'T0': We0, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
     return modelOutput
 
 def applyToObs(params, Xnew):
