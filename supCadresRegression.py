@@ -1,5 +1,7 @@
 ## supCadresRegression.py
 ## author: Alexander New
+## TO-DO: Modify learnCadreModel() to return the computational graph
+##        Modify applyToObs() to accept a computational graph to minimize run-time
 
 import numpy as np
 import tensorflow as tf
