@@ -130,7 +130,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
         GeVa = G.eval(feed_dict={X: Xva, Y: Yva})
 
         ## evaluate optimal parameters
-        Ce, de, We, w0e, Se = C.eval(), d.eval(), W.eval(), W0.eval(), sigma.eval()
+        Ce, de, We, w0e, Se = C.eval(), d.eval(), W.eval(), w0.eval(), sigma.eval()
 
         modelOutput = {'fTr': FeTr, 'fVa': FeVa, 'mTr': mTr, 'mVa': mVa, 'loss': (errTr[-1], errVa[-1]),
                        'C': Ce, 'd': de, 'W': We, 'w0': w0e, 's': Se, 'Gtr': GeTr, 'Gva': GeVa}
