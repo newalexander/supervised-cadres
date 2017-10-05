@@ -88,7 +88,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
     ## L = 1 / N sum_n sum_m g_m(x^n) * (e_m(x^n) - y_n) ^2
     L = tf.add(tf.reduce_mean(tf.reduce_sum(G * (E - Y) **2, axis=1)) / 2 / sigma**2,
          (eNet(alpha[0], lam[0], d) + eNet(alpha[1], lam[1], W)) / 2 / N / sigma**2 +
-         (1/2 - 1/N) * tf.log(sigma**2), name='L')
+         (1/2 + 1/N) * tf.log(sigma**2), name='L')
 
     bstCd = tf.argmax(G, axis=1, name='bestCadre')
     optimizer = tf.train.AdamOptimizer(learning_rate=eta).minimize(L)
