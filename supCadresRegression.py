@@ -2,6 +2,8 @@
 ## author: Alexander New
 ## TO-DO: Modify learnCadreModel() to return the computational graph
 ##        Modify applyToObs() to accept a computational graph to minimize run-time
+##        Allow initial guesses to be given for parameter values in learnCadreModel()
+##        Force a cadre to be centered around a particular point (cadres like me)
 
 import numpy as np
 import tensorflow as tf
