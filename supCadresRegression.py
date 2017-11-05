@@ -2,18 +2,17 @@
 ## author: Alexander New
 ## TO-DO: Modify learnCadreModel() to return the computational graph
 ##        Modify applyToObs() to accept a computational graph to minimize run-time
-##        Allow initial guesses to be given for parameter values in learnCadreModel()
 ##        Force a cadre to be centered around a particular point (cadres like me)
 
 import numpy as np
 import tensorflow as tf
 
-## elastic net penalty
 def eNet(alpha, lam, v):
+    """Elastic-net regularization penalty"""
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
 
-def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
+def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162):
     """Use stochastic gradient descent to learn a cadre regression model.
     Arguments: Xtr: matrix of training observations
                Ytr: matrix (one column) of training target values
@@ -23,6 +22,7 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
                alpha: list of elastic net mixing hyperparameters for d, W
                       (alpha = 0 is LASSO, alpha = 1 is ridge)
                lam: list of regularization strength hyperparameters for d, W
+               inits: dict of initial parameter guesses
                seed: prng seed for numpy
     Returns: dict with entries
                'fTr': training predictions
@@ -53,18 +53,33 @@ def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed):
     tf.reset_default_graph()
 
     ## cadre centers parameter
-    C  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
-                 dtype=tf.float64, name='C')
+    if 'C' in inits:
+        C = tf.Variable(inits['C'], dtype=tf.float64, name='C')
+    else:
+        C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
+                        dtype=tf.float64, name='C')
     ## cadre determination weights parameter
-    d  = tf.Variable(np.random.uniform(size=(P)), dtype=tf.float64, name='d')
+    if 'd' in inits:
+        d = tf.Variable(inits['d'], dtype=tf.float64, name='d')
+    else:
+        d = tf.Variable(np.random.uniform(size=(P)), dtype=tf.float64, name='d')
     ## regression hyperplane weights parameter
-    W  = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
-                     dtype=tf.float64, name='W')
+    if 'W' in inits:
+        W = tf.Variable(inits['W'], dtype=tf.float64, name='W')
+    else:
+        W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,M)), 
+                        dtype=tf.float64, name='W')
     ## regression hyperplane bias parameter
-    w0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), dtype=tf.float64,
-                     name='W0')
+    if 'w0' in inits:
+        w0 = tf.Variable(inits['w0'], dtype=tf.float64, name='w0')
+    else:
+        w0 = tf.Variable(tf.zeros(shape=(M,), dtype=tf.float64), 
+                         dtype=tf.float64, name='w0')
     ## model error parameter
-    sigma = tf.Variable(0.1, dtype=tf.float64, name='sigma')
+    if 'sigma' in inits:
+        sigma = tf.Variable(inits['sigma'], dtype=tf.float64, name='sigma')
+    else:
+        sigma = tf.Variable(0.1, dtype=tf.float64, name='sigma')
 
     X = tf.placeholder(dtype=tf.float64, shape=(None,P), name='X')
     N = tf.cast(tf.gather(tf.shape(X), 0), dtype=tf.float64, name='N')
