@@ -4,6 +4,8 @@
 ##        Modify applyToObs() to accept a computational graph to minimize run-time
 ##        Force a cadre to be centered around a particular point (cadres like me)
 
+from __future__ import division, print_function, absolute_import
+
 import numpy as np
 import tensorflow as tf
 
