@@ -39,13 +39,21 @@ Ytr, Yva = 2*Ytr-1, 2*Yva-1 # map labels to {-1s, +1}
 
 M = 2                # number of cadres
 alpha = [0.95, 0.05] # d is more l1, W is more l2
-lam = [0.01, 0.01] # regularization strength
+lam = [0.01, 0.01]   # regularization strength
+
+##################
+## learn models ##
+##################
 
 cadreModel = sc.learnCadreModelBin(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
 
 ## learn svm
 lsvc = LinearSVC(loss='hinge', C=0.1)
 lsvc.fit(Xtr, Ytr)
+
+######################
+## evaluate results ##
+######################
 
 ## plot class label vs. predicted margin for the test set,
 ## colored by cadre membership. we introduce a slight jitter on the x-axis to
