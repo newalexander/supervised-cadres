@@ -44,7 +44,7 @@ M = 3                # number of cadres
 alpha = [0.95, 0.05] # d is more l1, W is more l2
 lam = [1, 1]         # regularization strength
 
-cadreModel = sc.learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, 1)
+cadreModel = sc.learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
 
 ## learn SVRs
 lsvr = LinearSVR(epsilon=0.1, C=1)
