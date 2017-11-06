@@ -11,8 +11,8 @@ along with the cadre centers.
 We also compare the predictive ability of a supervised cadre model with a linear SVR
 and a gaussian kernel SVR. The cadre model should outperform the linear SVR and be
 competitive with the nonlinear SVR, depending on vagaries of the train-validation split.
-Note that this script is written for Python 3.
 '''
+from __future__ import division, print_function, absolute_import
 
 import numpy as np
 import scipy.stats as ss
