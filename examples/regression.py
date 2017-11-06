@@ -44,6 +44,10 @@ M = 3                # number of cadres
 alpha = [0.95, 0.05] # d is more l1, W is more l2
 lam = [1, 1]         # regularization strength
 
+##################
+## learn models ##
+##################
+
 cadreModel = sc.learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
 
 ## learn SVRs
@@ -51,6 +55,10 @@ lsvr = LinearSVR(epsilon=0.1, C=1)
 lsvr.fit(Xtr, np.squeeze(Ytr))
 ksvr = SVR(kernel='rbf', C=2)
 ksvr.fit(Xtr, np.squeeze(Ytr))
+
+######################
+## evaluate results ##
+######################
 
 ## plot true y values vs. predicted y values in the test set,
 ## colored by cadre membership
