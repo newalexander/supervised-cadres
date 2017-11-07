@@ -1,6 +1,6 @@
-## supCadresClassification.py
+## classification.py
 ## author: Alexander New
-## TO-DO: Modify learnCadreModel() to return the computational graph
+## TO-DO: Modify learnClassifier() to return the computational graph
 ##        Modify applyToObs() to accept a computational graph to minimize run-time
 ##        Force a cadre to be centered around a particular point (cadres like me)
 ##        Add support for multi-label classification
@@ -17,7 +17,7 @@ def eNet(alpha, lam, v):
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
 
-def learnCadreModelBin(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162):
+def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162):
     """Use stochastic gradient descent to learn a cadre binary classification model.
     Arguments: Xtr: matrix of training observations
                Ytr: vector of training labels
