@@ -14,7 +14,7 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 import scipy.stats as ss
 import pandas as pd
-import supCadresClassification as sc
+import cadreModels.classification as sc
 from sklearn.datasets import load_breast_cancer
 from sklearn.svm import LinearSVC
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ lam = [0.01, 0.01]   # regularization strength
 ## learn models ##
 ##################
 
-cadreModel = sc.learnCadreModelBin(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
+cadreModel = sc.learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
 
 ## learn svm
 lsvc = LinearSVC(loss='hinge', C=0.1)
