@@ -17,7 +17,7 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 import scipy.stats as ss
 import pandas as pd
-import supCadresRegression as sc
+import cadreModels.regression as sc
 from sklearn.datasets import load_boston
 from sklearn.svm import LinearSVR, SVR
 import matplotlib.pyplot as plt
@@ -48,7 +48,7 @@ lam = [1, 1]         # regularization strength
 ## learn models ##
 ##################
 
-cadreModel = sc.learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
+cadreModel = sc.learnRegression(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
 
 ## learn SVRs
 lsvr = LinearSVR(epsilon=0.1, C=1)
