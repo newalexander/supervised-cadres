@@ -1,6 +1,6 @@
-## supCadresRegression.py
+## regression.py
 ## author: Alexander New
-## TO-DO: Modify learnCadreModel() to return the computational graph
+## TO-DO: Modify learnRegression() to return the computational graph
 ##        Modify applyToObs() to accept a computational graph to minimize run-time
 ##        Force a cadre to be centered around a particular point (cadres like me)
 
@@ -14,7 +14,7 @@ def eNet(alpha, lam, v):
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
 
-def learnCadreModel(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162):
+def learnRegression(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162):
     """Use stochastic gradient descent to learn a cadre regression model.
     Arguments: Xtr: matrix of training observations
                Ytr: matrix (one column) of training target values
