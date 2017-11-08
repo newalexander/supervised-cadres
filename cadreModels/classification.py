@@ -36,7 +36,7 @@ def learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, inits=dict(), seed=16162)
                'mVa': cadre assignments for validation data
                'loss': loss function values for training, validation data
                'rate': classification rate for training, validation data
-               'C', 'd', 'W', 'w0', 's': optimal model parameters
+               'C', 'd', 'W', 'w0': optimal model parameters
                'Gtr', 'Gva': matrices of cadre membership weights
     """
     np.random.seed(seed)
