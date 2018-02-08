@@ -31,7 +31,7 @@ D = pd.DataFrame(boston['data']).assign(target=boston['target']).sample(frac=1, 
 
 ## train and test set sizes
 Ntr = int(np.ceil(0.75*D.shape[0]))
-Nte = D.shape[0] - Ntr
+Nva = D.shape[0] - Ntr
 P = D.shape[1]-1
 
 ## train and test splits
@@ -48,7 +48,8 @@ lam = [1, 1]         # regularization strength
 ## learn models ##
 ##################
 
-cadreModel = sc.learnRegression(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
+cadreModel = sc.regressionCadreModel(lambda_d=lam[0], lambda_W=lam[1], M=M)
+cadreModel.fit(Xtr, Ytr)
 
 ## learn SVRs
 lsvr = LinearSVR(epsilon=0.1, C=1)
@@ -60,12 +61,16 @@ ksvr.fit(Xtr, np.squeeze(Ytr))
 ## evaluate results ##
 ######################
 
+## apply cadre model to testing set
+fTr = cadreModel.predict(Xtr)
+fVa, Gva, mVa = cadreModel.predictFull(Xva)
+
 ## plot true y values vs. predicted y values in the test set,
 ## colored by cadre membership
 colors = ['blue','red','green']
 for m in range(M):
-    plt.scatter(Yva[np.where(cadreModel['mVa']==m)], 
-                cadreModel['fVa'][np.where(cadreModel['mVa']==m)], 
+    plt.scatter(Yva[np.where(mVa==m)], 
+                fVa[np.where(mVa==m)],
                 c=colors[m], label='cadre_'+str(m))
 plt.legend(loc='upper left')
 plt.xlabel('true Y')
@@ -80,8 +85,18 @@ plt.xlabel('true Y')
 plt.ylabel('predicted Y')
 plt.show()
 
+## plot cadre-membership weights for each cadre
+for m in range(M):
+    plt.scatter(np.arange(Nte), 
+                Gva[:,m],
+                c=colors[m], label='cadre_'+str(m))
+plt.legend(loc='upper left')
+plt.xlabel('observation index')
+plt.ylabel('cadre-membership weight')
+plt.show()
+
 ## plot distribution of cadre assignment weights
-plt.plot(np.arange(P), np.abs(cadreModel['d']))
+plt.plot(np.arange(P), np.abs(cadreModel.d))
 plt.xlabel('feature index')
 plt.ylabel('cadre assignment weight')
 plt.show()
@@ -89,13 +104,13 @@ plt.show()
 ## find out what features are used for cadre assignment
 threshold = 0.001
 print('features used for cadre assignment')
-print(boston.feature_names[np.where(np.abs(cadreModel['d']) > threshold)])
-print('only', np.sum(np.abs(cadreModel['d']) > threshold), 'out of', P, 'features are used for',
+print(boston.feature_names[np.where(np.abs(cadreModel.d) > threshold)])
+print('only', np.sum(np.abs(cadreModel.d) > threshold), 'out of', P, 'features are used for',
       'cadre assignment at a threshold of', threshold)
 
 ## plot distribution of cadre centers
 for m in range(M):
-    plt.plot(np.arange(P), cadreModel['C'][:,m], c=colors[m], label='cadre_'+str(m))
+    plt.plot(np.arange(P), cadreModel.C[:,m], c=colors[m], label='cadre_'+str(m))
 plt.axhline(y=0, xmin=0, xmax=P, color='black', label='reference')
 plt.legend(loc='upper left')
 plt.xlabel('feature index')
@@ -106,7 +121,7 @@ plt.show()
 ## colored by cadre
 ## include linear svr for comparison
 for m in range(M):
-    plt.plot(np.arange(P), cadreModel['W'][:,m], c=colors[m], label='cadre_'+str(m))
+    plt.plot(np.arange(P), cadreModel.W[:,m], c=colors[m], label='cadre_'+str(m))
 plt.plot(np.arange(P), lsvr.coef_, c='orange', label='lsvr')
 plt.axhline(y=0, xmin=0, xmax=P, color='black', label='reference')
 plt.legend(loc='upper left')
@@ -116,8 +131,8 @@ plt.show()
 
 ## calculate train set and test set MSE for each model
 print('supervised cadre training error, generalization error')
-print(np.mean((np.squeeze(Ytr) - cadreModel['fTr'])**2),
-      np.mean((np.squeeze(Yva) - cadreModel['fVa'])**2))
+print(np.mean((np.squeeze(Ytr) - fTr)**2),
+      np.mean((np.squeeze(Yva) - fVa)**2))
 print('linear SVR training error, generalization error')
 print(np.mean((np.squeeze(Ytr) - lsvr.predict(Xtr))**2),
       np.mean((np.squeeze(Yva) - lsvr.predict(Xva))**2))
