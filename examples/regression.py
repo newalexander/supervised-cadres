@@ -87,7 +87,7 @@ plt.show()
 
 ## plot cadre-membership weights for each cadre
 for m in range(M):
-    plt.scatter(np.arange(Nte), 
+    plt.scatter(np.arange(Nva), 
                 Gva[:,m],
                 c=colors[m], label='cadre_'+str(m))
 plt.legend(loc='upper left')
