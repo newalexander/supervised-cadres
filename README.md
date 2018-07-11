@@ -13,12 +13,15 @@ In the `cadreModels` folder, there are four different types of cadre model, corr
 - Binary classification problems: `riskModeling.py`
 - Multilabel classification problems: `classification.py`
 
-The regression SCM has the same interface as a `scikit-learn` estimator. This means it is compatible with `sklearn`'s hyperparameter tuning functions. So given:
-- training observations `X`
-- training target values `Y`
+The regression SCM has the same interface as a `scikit-learn` estimator. This means it is compatible with `sklearn`'s hyperparameter tuning functions. 
+
+Given:
+- training observations `Xtr`
+- training target values `Ytr`
 
 You train a regression cadre model with:
-`cadreModel = regressionCadreModel()`
-`cadreModel.fit(Xtr, Ytr)`
+
+    cadreModel = regressionCadreModel()
+    cadreModel.fit(Xtr, Ytr)
 
 The files in the `examples` folder contain more in-depth examples.
