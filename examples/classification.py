@@ -1,4 +1,4 @@
-## classification.py
+## classification-example.py
 ## author: alexander new
 
 '''In this example, we train a binary classification cadre model on the breast cancer dataset.
@@ -35,17 +35,21 @@ P = D.shape[1]-1
 Xtr, Ytr = D[:Ntr,:-1], D[:Ntr,-1]
 Xva, Yva = D[Ntr:,:-1], D[Ntr:,-1]
 Xva, Xtr = ss.zmap(Xva, Xtr), ss.zscore(Xtr)   
-Ytr, Yva = 2*Ytr-1, 2*Yva-1 # map labels to {-1s, +1} 
 
+Tmax = 1001
 M = 2                # number of cadres
-alpha = [0.95, 0.05] # d is more l1, W is more l2
-lam = [0.01, 0.01]   # regularization strength
+alpha_d, alpha_W = 0.95, 0.05 # d is more l1, W is more l2
+lambda_d, lambda_W = 0.01, 0.05   # regularization strength
 
 ##################
 ## learn models ##
 ##################
 
-cadreModel = sc.learnClassifier(Xtr, Ytr, Xva, Yva, M, alpha, lam, seed=1)
+cadreModel = sc.kClassCadreModel(M=M, alpha_d=alpha_d, alpha_W=alpha_W, 
+                                 lambda_d=lambda_d, lambda_W=lambda_W, Tmax=Tmax)
+cadreModel.fit(Xtr=Xtr, Ytr=Ytr, Xva=Xva, Yva=Yva, seed=1512)
+## calculate classification score, label, membership probabilities, and cadre for validation data
+fVa, lVa, Gva, mVa = cadreModel.predictFull(Xva)
 
 ## learn svm
 lsvc = LinearSVC(loss='hinge', C=0.1)
@@ -59,12 +63,12 @@ lsvc.fit(Xtr, Ytr)
 ## colored by cadre membership. we introduce a slight jitter on the x-axis to
 ## avoid overlaps. true negative points above the horizontal line are misclassified.
 ## true positive points below the horizontal line are misclassified.
-colors = ['blue', 'red', 'green']
+colors = {(0,0): 'blue', (0,1): 'red', (1,0): 'green', (1,1): 'orange'}
 for m in range(M):
-    plt.scatter(Yva[np.where(cadreModel['mVa']==m)]+m/10,
-                cadreModel['fVa'][np.where(cadreModel['mVa']==m)],
-                facecolors='none', edgecolors=colors[m], label='cadre_'+str(m))
-plt.scatter(Yva-1/10, lsvc.decision_function(Xva), facecolors='none', edgecolors=colors[-1], label='svm')
+    plt.scatter(Yva[np.where(mVa==m)]+m/10,
+                fVa[np.where(mVa==m),0],
+                facecolors='none', edgecolors=colors[m,m], label='cadre_'+str(m))
+plt.scatter(Yva-1/10, lsvc.decision_function(Xva), facecolors='none', edgecolors=colors[0,1], label='svm')
 plt.axhline()
 plt.legend(loc='center')
 plt.xlabel('true label')
@@ -72,32 +76,33 @@ plt.ylabel('predicted margin')
 plt.show()
 
 ## plot distribution of cadre assignment weights
-plt.plot(np.arange(P), np.abs(cadreModel['d']))
+plt.plot(np.arange(P), np.abs(cadreModel.d))
 plt.xlabel('feature index')
 plt.ylabel('cadre assignment weight')
 plt.show()
 
 ## find out what features are used for cadre assignment
-threshold = 0.001
+threshold = 0.01
 print('features used for cadre assignment')
-print(breastCancer.feature_names[np.where(np.abs(cadreModel['d']) > threshold)])
-print('only', np.sum(np.abs(cadreModel['d']) > threshold), 'out of', P, 'features are used for',
+print(breastCancer.feature_names[np.where(np.abs(cadreModel.d) > threshold)])
+print('only', np.sum(np.abs(cadreModel.d) > threshold), 'out of', P, 'features are used for',
       'cadre assignment at a threshold of', threshold)
 
 ## plot distribution of cadre centers
 for m in range(M):
-    plt.plot(np.arange(P), cadreModel['C'][:,m], c=colors[m], label='cadre_'+str(m))
+    plt.plot(np.arange(P), cadreModel.C[:,m], c=colors[m,m], label='cadre_'+str(m))
 plt.axhline(y=0, xmin=0, xmax=P, color='black', label='reference')
 plt.legend(loc='upper left')
 plt.xlabel('feature index')
 plt.ylabel('cadre center')
 plt.show()
 
-## plot distribution of target prediction weights (i.e. linear models),
-## colored by cadre
+## plot distribution of softmax regression weights
+## colored by cadre and target
 ## include linear svm for comparison
 for m in range(M):
-    plt.plot(np.arange(P), cadreModel['W'][:,m], c=colors[m], label='cadre_'+str(m))
+    for k in range(np.unique(Ytr).shape[0]):
+        plt.plot(np.arange(P), cadreModel.W[k,:,m], c=colors[m,k], label='label-'+str(k)+'_cadre-'+str(m))
 plt.plot(np.arange(P), np.squeeze(lsvc.coef_), c='green', label='lsvm')
 plt.axhline(color='black', label='reference')
 plt.legend(loc='upper left')
@@ -107,7 +112,7 @@ plt.show()
 
 ## calculate train set and test set classification rate for each model
 print('supervised cadre model training error, generalization error')
-print(cadreModel['rate'])
+print(cadreModel.accs[-1], cadreModel.accsVa[-1])
 print('linear SVM training error, generalization error')
 print(np.sum(lsvc.predict(Xtr)==Ytr)/Xtr.shape[0],
       np.sum(lsvc.predict(Xva)==Yva)/Xva.shape[0])
