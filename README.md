@@ -24,4 +24,4 @@ You train a regression cadre model with:
     cadreModel = regressionCadreModel()
     cadreModel.fit(Xtr, Ytr)
 
-The files in the `examples` folder contain more in-depth examples.
+The files in the `examples` folder contain more in-depth examples. If you have questions, please email me at `newa@rpi.edu`.
