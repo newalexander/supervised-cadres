@@ -132,7 +132,6 @@ class kClassCadreModel(object):
                     else:
                         print(t)
                     self.time.append(time.time() - t0)
-                    self.geni.append(self.Nba * t / Ntr)
                     l, yhats = sess.run([L, Yhat], feed_dict={X: Xtr, Y: Ytr})
                     self.loss.append(l)
                     self.accs.append(np.mean(yhats == Ytr))
