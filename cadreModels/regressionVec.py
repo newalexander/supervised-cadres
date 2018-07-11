@@ -226,31 +226,3 @@ class regressionCadreModel(object):
         """Returns average sum-of-squares for new data"""
         Fnew = self.predict(Xnew)
         return ((Fnew - np.squeeze(Ynew))**2).mean()
-    
-    def entropy(self, Xnew):
-        """Returns estimated entropy for each cadre"""
-        G, m = self.predictFull(Xnew)[1:]    
-        marg = calcMargiProb(m, self.M)
-        jont = calcJointProb(G, m,  self.M)
-        cond = calcCondiProb(jont, marg)
-        return estEntropy(cond)
-    
-    def getNumberParams(self):
-        """Returns number of parameters of a model"""
-        return np.prod(self.C.shape) + np.prod(self.d.shape) + np.prod(self.W.shape) + np.prod(self.w0.shape)
-
-    def getNumberParamsRed(self, threshold=1e-4):
-        """Returns number of active parameters of a model"""
-        if not self.fitted: print('warning: model not yet fit')
-        return (np.sum(np.abs(self.C) > threshold) + np.sum(np.abs(self.d) > threshold) + 
-                np.sum(np.abs(self.W) > threshold) + np.sum(np.abs(self.w0 > threshold)))
-    
-    def calcBIC(self):
-        """Returns BIC of learned model"""
-        if not self.fitted: print('warning: model not yet fit')
-        return 2*self.Y.shape[0]*self.loss[-1] + 2 * self.getNumberParams() * np.log(self.Y.shape[0])
-
-    def calcBICred(self, threshold=1e-4):
-        """Returns effective degree-of-freedom BIC of learned model"""
-        if not self.fitted: print('warning: model not yet fit')
-        return 2*self.Y.shape[0]*self.loss[-1] + 2 * self.getNumberParamsRed(threshold) * np.log(self.Y.shape[0])
