@@ -1,4 +1,5 @@
 ## regressionVec.py
+## vector-valued regression (with diagonal covariance noise matrix)
 
 from __future__ import division, print_function, absolute_import
 
