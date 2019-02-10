@@ -94,7 +94,7 @@ class binaryCadreModel(object):
         ## T[n,m] = ||x^n - c^m||^2_D
         T = tf.einsum('npm,p->nm', 
               tf.square(tf.map_fn(lambda x: tf.expand_dims(x,1) - C, X)), 
-              tf.abs(d))
+              d)
                 
         ## G[n,m] = g_m(x^n)
         ##        = 1 / sum_m' exp(gamma(T[n,m] - T[n,m']))
@@ -129,6 +129,10 @@ class binaryCadreModel(object):
         loss_full = loss_opt + l1_d + l1_W
         optimizer = tf.train.AdamOptimizer(learning_rate=self.eta).minimize(loss_opt)
         
+        ## nonsmooth proximal terms
+        thresh_W = tf.assign(W, tf.sign(W) * (tf.abs(W) - eta * self.lambda_W * self.alpha_W) * tf.cast(tf.abs(W) > eta * self.lambda_W * self.alpha_W, tf.float32))
+        thresh_d = tf.assign(d, tf.maximum(0., tf.sign(d) * (tf.abs(d) - eta * self.lambda_d * self.alpha_d) * tf.cast(tf.abs(d) > eta * self.lambda_d * self.alpha_d, tf.float32)))
+        
         ####################
         ## learning model ##
         ####################
@@ -140,6 +144,7 @@ class binaryCadreModel(object):
             for t in range(self.Tmax):
                 inds = np.random.choice(Ntr, self.Nba, replace=False)
                 sess.run(optimizer, feed_dict={X: Xtr[inds,:], Y: Ytr[inds,:]})
+                sess.run([thresh_d, thresh_W], feed_dict={eta: self.eta})
                 # record-keeping        
                 if not t % self.record:
                     if progress:
