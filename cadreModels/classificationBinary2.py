@@ -230,7 +230,7 @@ class binaryCadreModel(object):
                                                             columns=['c'+str(m) for m in range(self.M)]))
                         self.norms['W'].append(pd.DataFrame(np.linalg.norm(W_t, axis=0)[None,:],
                                                             columns=['w'+str(m) for m in range(self.M)]))
-                        self.norms['d'].append(pd.DataFrame(np.linalg.norm(d_t), columns=['d']))
+                        self.norms['d'].append(pd.Series(np.linalg.norm(d_t)))
                         
                     if dataVa is not None:
                         l, margin = sess.run([loss_full, F], feed_dict={Xcadre: dataCadreVa,
