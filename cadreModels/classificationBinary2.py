@@ -56,6 +56,9 @@ class binaryCadreModel(object):
                                       'accuracy': [],
                                       'ROC_AUC': [],
                                       'PR_AUC': []}}
+        self.norms = {'W': [],
+                      'd': [],
+                      'C': []}
         self.time = [] # times
         self.proportions = [] # cadre membership proportions during training
     
@@ -71,7 +74,8 @@ class binaryCadreModel(object):
         return self
         
     def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
-            seed=16162, store=False, progress=False, decrease_stepsize=True):
+            seed=16162, store=False, progress=False, decrease_stepsize=True,
+           get_norms=False):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -219,6 +223,14 @@ class binaryCadreModel(object):
                                                                                       margin))
                     self.proportions.append(pd.Series(cadres).value_counts().T)
                     self.proportions[-1] /= self.proportions[-1].sum()
+                    
+                    if get_norms:
+                        C_t, d_t, W_t = sess.run([C, d, W])
+                        self.norms['C'].append(pd.DataFrame(np.linalg.norm(C_t, axis=0), 
+                                                            columns=['c'+str(m) for m in range(M)]))
+                        self.norms['W'].append(pd.DataFrame(np.linalg.norm(W_t, axis=0),
+                                                            columns=['w'+str(m) for m in range(M)]))
+                        self.norms['d'].append(pd.DataFrame(np.linalg.norm(d_t), columns=['d']))
                         
                     if dataVa is not None:
                         l, margin = sess.run([loss_full, F], feed_dict={Xcadre: dataCadreVa,
@@ -242,6 +254,8 @@ class binaryCadreModel(object):
             if dataVa is not None:
                 self.metrics['validation'] = pd.DataFrame(self.metrics['validation'])
             self.proportions = pd.concat(self.proportions, axis=1).T
+            if get_norms:
+                self.norms = {key: pd.concat(value) for key, value in self.norms.items()}
             
         return self
     
