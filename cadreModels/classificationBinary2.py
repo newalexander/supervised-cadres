@@ -226,9 +226,9 @@ class binaryCadreModel(object):
                     
                     if get_norms:
                         C_t, d_t, W_t = sess.run([C, d, W])
-                        self.norms['C'].append(pd.DataFrame(np.linalg.norm(C_t, axis=0), 
+                        self.norms['C'].append(pd.DataFrame(np.linalg.norm(C_t, axis=0)[:,None], 
                                                             columns=['c'+str(m) for m in range(self.M)]))
-                        self.norms['W'].append(pd.DataFrame(np.linalg.norm(W_t, axis=0),
+                        self.norms['W'].append(pd.DataFrame(np.linalg.norm(W_t, axis=0)[:,None],
                                                             columns=['w'+str(m) for m in range(self.M)]))
                         self.norms['d'].append(pd.DataFrame(np.linalg.norm(d_t), columns=['d']))
                         
