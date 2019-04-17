@@ -71,7 +71,7 @@ class binaryCadreModel(object):
         return self
         
     def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
-            seed=16162, store=False, progress=False):
+            seed=16162, store=False, progress=False, decrease_stepsize=True):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -177,12 +177,16 @@ class binaryCadreModel(object):
             for t in range(self.Tmax):
                 inds = np.random.choice(Ntr, self.Nba, replace=False)
                 ## take SGD step
+                if decrease_stepsize:
+                    eta_t = self.eta / np.sqrt(t+1)
+                else:
+                    eta_t = self.eta
                 sess.run(optimizer, feed_dict={Xcadre: dataCadre[inds,:],
                                                Xpredict: dataPredict[inds,:],
                                                Y: dataTarget[inds,:],
-                                               eta: self.eta})
+                                               eta: eta_t})
                 ## take proximal gradient step
-                sess.run([thresh_d, thresh_W], feed_dict={eta: self.eta})
+                sess.run([thresh_d, thresh_W], feed_dict={eta: eta_t})
                 # record-keeping        
                 if not t % self.record:
                     if progress:
