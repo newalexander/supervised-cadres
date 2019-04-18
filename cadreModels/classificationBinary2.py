@@ -239,6 +239,7 @@ class binaryCadreModel(object):
                     print('dataTarget', dataTarget.shape)
                     print('yhat', pd.Series(np.squeeze(yhat)).value_counts())
                     print('dataTarget', pd.Series(np.squeeze(dataTarget)).value_counts())
+                    print('margin', margin.shape, margin.min(), margin.max())
                     self.metrics['training']['loss'].append(l)
                     self.metrics['training']['accuracy'].append(np.mean(yhat == dataTarget))
                     self.metrics['training']['ROC_AUC'].append(roc_auc_score(dataTarget,
