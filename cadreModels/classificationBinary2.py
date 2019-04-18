@@ -157,7 +157,7 @@ class binaryCadreModel(object):
             
             loss_score = tf.reduce_mean(error_terms)
         
-        if loss == 'separate':
+        elif loss == 'separate':
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
@@ -225,7 +225,10 @@ class binaryCadreModel(object):
                                                  feed_dict={Xcadre: dataCadre,
                                                             Xpredict: dataPredict,
                                                             Y: dataTarget})
-                    yhat = 0.5 * (np.sign(margin) + 1)
+                    if loss == 'combined':
+                        yhat = 0.5 * (np.sign(margin) + 1)
+                    elif loss == 'separate':
+                        yhat = np.round(margin)
                     self.metrics['training']['loss'].append(l)
                     self.metrics['training']['accuracy'].append(np.mean(yhat == dataTarget))
                     self.metrics['training']['ROC_AUC'].append(roc_auc_score(dataTarget,
@@ -247,7 +250,10 @@ class binaryCadreModel(object):
                         l, margin = sess.run([loss_full, F], feed_dict={Xcadre: dataCadreVa,
                                                                 Xpredict: dataPredictVa,
                                                                 Y: dataTargetVa})
-                        yhat = 0.5 * (np.sign(margin) + 1)
+                        if loss == 'combined':
+                            yhat = 0.5 * (np.sign(margin) + 1)
+                        elif loss == 'separate':
+                            yhat = np.round(margin)
                         self.metrics['validation']['loss'].append(l)
                         self.metrics['validation']['accuracy'].append(np.mean(yhat == dataTargetVa))
                         self.metrics['validation']['ROC_AUC'].append(roc_auc_score(dataTargetVa,
