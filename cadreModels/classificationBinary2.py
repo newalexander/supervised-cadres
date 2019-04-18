@@ -75,7 +75,7 @@ class binaryCadreModel(object):
         
     def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
             seed=16162, store=False, progress=False, decrease_stepsize=True,
-           get_norms=False):
+           get_norms=False, loss='combined'):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -141,19 +141,30 @@ class binaryCadreModel(object):
         ## cadre-assignment scores
         G = 1 / tf.map_fn(lambda t: 
                       tf.reduce_sum(tf.exp(self.gamma*(tf.expand_dims(t,1) - 
-                                             tf.expand_dims(t,0))), axis=1), T, name='G')                 
+                                             tf.expand_dims(t,0))), axis=1), T, name='G')
+        bstCd = tf.argmax(G, axis=1, name='bestCadre')
 
-        ## E[n,y,m] = e^m_y(x^n)
+        ## E[n,y] = e^m_y(x^n)
         ## cadre-wise prediction scores
         E = tf.add(tf.matmul(Xpredict, W), W0, name='E')
         
-        ## F[n] = f_k(x^n)
-        F = tf.reduce_sum(G * E, name='F', axis=1, keepdims=True)
-        bstCd = tf.argmax(G, axis=1, name='bestCadre')
+        if loss == 'combined':
+            ## F[n] = f_k(x^n)
+            F = tf.reduce_sum(G * E, name='F', axis=1, keepdims=True)
 
-        ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
-        error_terms = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=F)
-        loss_score = tf.reduce_mean(error_terms)
+            ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
+            error_terms = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=F)
+            
+            loss_score = tf.reduce_mean(error_terms)
+        
+        if loss == 'separate':
+            error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
+                                       labels=tf.squeeze(Y), logits=tf.transpose(E)))
+            
+            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1)
+            
+            loss_score = tf.reduce_mean(tf.reduce_mean(G * error_terms, axis=1))
+        
         l2_d = self.lambda_d * (1 - self.alpha_d) * tf.reduce_sum(d**2)
         l2_W = self.lambda_W * (1 - self.alpha_W) * tf.reduce_sum(W**2)
         l1_d = self.lambda_d * self.alpha_d * tf.reduce_sum(tf.abs(d))
