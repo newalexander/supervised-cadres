@@ -167,7 +167,7 @@ class binaryCadreModel(object):
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
-            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
             
             loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
@@ -315,7 +315,7 @@ class binaryCadreModel(object):
         ## E[n,y,m] = e^m_y(x^n)
         ## cadre-wise prediction scores
         E = tf.add(tf.matmul(Xpredict, W), W0, name='E')
-        bstCd = tr.argmax(G, axis=1, name='bestCadre')
+        bstCd = tf.argmax(G, axis=1, name='bestCadre')
         
         if self.loss_type == 'combined':
             F = tf.reduce_sum(G*E, name='F', axis=1, keepdims=True)
@@ -329,7 +329,7 @@ class binaryCadreModel(object):
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
-            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
             
             loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
