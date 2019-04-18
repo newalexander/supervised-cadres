@@ -295,6 +295,11 @@ class binaryCadreModel(object):
         Xpredict = tf.placeholder(dtype=tf.float32, shape=(None,self.predictFts.shape[0]), name='Xpredict')
         Y = tf.placeholder(dtype=tf.float32, shape=(None,1), name='Y')
         
+        if self.loss_type == 'combined':
+            target = Dnew.loc[:,[self.targetCol]].values
+        elif self.loss_type == 'separate':
+            target = 2 * Dnew.loc[:,[self.targetCol]].values - 1
+        
         ## T[n,m] = ||x^n - c^m||^2_D
         T = tf.einsum('npm,p->nm', 
               tf.square(tf.map_fn(lambda x: tf.expand_dims(x,1) - C, Xcadre)), 
@@ -314,6 +319,7 @@ class binaryCadreModel(object):
         
         if self.loss_type == 'combined':
             F = tf.reduce_sum(G*E, name='F', axis=1, keepdims=True)
+            ## values of Yhat are in {0, 1}
             Yhat = 0.5 * (tf.sign(F) + 1)
             
             ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
@@ -325,6 +331,7 @@ class binaryCadreModel(object):
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
             F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            ## values of Yhat are in {-1, +1}
             Yhat = 2 * tf.round(F) - 1
             
             loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
@@ -355,7 +362,12 @@ class binaryCadreModel(object):
         return np.mean(target == Lnew)
     
     def scoreMetrics(self, Dnew):
-        target = Dnew.loc[:,[self.targetCol]].values        
+        ## values of target are in {0, 1}
+        if self.loss_type == 'combined':
+            target = Dnew.loc[:,[self.targetCol]].values
+        ## values of target are in {-1, +1}
+        elif self.loss_type == 'separate':
+            target = 2 * Dnew.loc[:,[self.targetCol]].values - 1        
         margin, label, __, __, loss = self.predictFull(Dnew)
         
         accuracy = np.mean(target == label)
