@@ -349,9 +349,9 @@ class binaryCadreModel(object):
             f, e, err = sess.run([F, E, error_terms], feed_dict={Xcadre: Dnew.loc[:,self.cadreFts].values,
                                                                 Xpredict: Dnew.loc[:,self.predictFts].values,
                                                                 Y: target})
-            print('f', f.min(), f.max())
-            print('e', e.min(), e.max())
-            print('err', err.min(), err.max())
+#             print('f', f.min(), f.max())
+#             print('e', e.min(), e.max())
+#             print('err', err.min(), err.max())
             
             Fnew, Lnew, Gnew, mNew, loss = sess.run([F, Yhat, G, bstCd, loss_full], 
                                                      feed_dict={Xcadre: Dnew.loc[:,self.cadreFts].values,
@@ -376,9 +376,9 @@ class binaryCadreModel(object):
         elif self.loss_type == 'separate':
             target = 2 * Dnew.loc[:,[self.targetCol]].values - 1        
         margin, label, __, __, loss = self.predictFull(Dnew)
-        print('target', target.shape, np.unique(target))
-        print('label', label.shape, np.unique(label))
-        print('margin', margin.shape, margin.min(), margin.max())
+#         print('target', target.shape, np.unique(target))
+#         print('label', label.shape, np.unique(label))
+#         print('margin', margin.shape, margin.min(), margin.max())
         
         accuracy = np.mean(target == label)
         ROC_AUC = roc_auc_score(target, margin)
