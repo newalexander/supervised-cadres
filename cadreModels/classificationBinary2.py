@@ -22,7 +22,7 @@ class binaryCadreModel(object):
     
     def __init__(self, M=2, gamma=10., lambda_d=0.01, lambda_W=0.01,
                  alpha_d=0.9, alpha_W=0.9, Tmax=10000, record=100, 
-                 eta=2e-3, Nba=50, eps=1e-3):
+                 eta=2e-3, Nba=50, eps=1e-3, loss_type='combined'):
         ## hyperparameters / structure
         self.M = M                # number of cadres
         self.gamma = gamma        # cadre assignment sharpness
@@ -31,6 +31,7 @@ class binaryCadreModel(object):
         self.alpha_d = alpha_d    # elastic net mixing weights
         self.alpha_W = alpha_W    
         self.fitted = False
+        self.loss_type = loss_type
         ## optimization settings
         self.Tmax = Tmax     # maximum iterations
         self.record = record # record points
@@ -75,7 +76,7 @@ class binaryCadreModel(object):
         
     def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
             seed=16162, store=False, progress=False, decrease_stepsize=True,
-           get_norms=False, loss='combined'):
+           get_norms=False):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -101,11 +102,16 @@ class binaryCadreModel(object):
         dataPredict = data.loc[:,self.predictFts].values
         ## target feature
         dataTarget = data.loc[:,[self.targetCol]].values
+        ## map from y \in {0, 1} to y \in {-1, +1} if separate loss is used
+        if self.loss_type == 'separate':
+            dataTarget = 2 * dataTarget - 1
         
         if dataVa is not None:
             dataCadreVa = dataVa.loc[:,self.cadreFts].values
             dataPredictVa = dataVa.loc[:,self.predictFts].values
             dataTargetVa = dataVa.loc[:,[self.targetCol]].values
+            if self.loss_type == 'separate':
+                dataTargetVa = 2 * dataTargetVa - 1
         
         
         ############################################
@@ -148,7 +154,7 @@ class binaryCadreModel(object):
         ## cadre-wise prediction scores
         E = tf.add(tf.matmul(Xpredict, W), W0, name='E')
         
-        if loss == 'combined':
+        if self.loss_type == 'combined':
             ## F[n] = f_k(x^n)
             F = tf.reduce_sum(G * E, name='F', axis=1, keepdims=True)
 
@@ -157,13 +163,13 @@ class binaryCadreModel(object):
             
             loss_score = tf.reduce_mean(error_terms)
         
-        elif loss == 'separate':
+        elif self.loss_type == 'separate':
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
-            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1)
+            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
             
-            loss_score = tf.reduce_mean(tf.reduce_mean(G * error_terms, axis=1))
+            loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
         l2_d = self.lambda_d * (1 - self.alpha_d) * tf.reduce_sum(d**2)
         l2_W = self.lambda_W * (1 - self.alpha_W) * tf.reduce_sum(W**2)
@@ -225,10 +231,10 @@ class binaryCadreModel(object):
                                                  feed_dict={Xcadre: dataCadre,
                                                             Xpredict: dataPredict,
                                                             Y: dataTarget})
-                    if loss == 'combined':
+                    if self.loss_type == 'combined':
                         yhat = 0.5 * (np.sign(margin) + 1)
-                    elif loss == 'separate':
-                        yhat = np.round(margin)
+                    elif self.loss_type == 'separate':
+                        yhat = 2 * np.round(margin) - 1
                     self.metrics['training']['loss'].append(l)
                     self.metrics['training']['accuracy'].append(np.mean(yhat == dataTarget))
                     self.metrics['training']['ROC_AUC'].append(roc_auc_score(dataTarget,
@@ -250,10 +256,10 @@ class binaryCadreModel(object):
                         l, margin = sess.run([loss_full, F], feed_dict={Xcadre: dataCadreVa,
                                                                 Xpredict: dataPredictVa,
                                                                 Y: dataTargetVa})
-                        if loss == 'combined':
+                        if self.loss_type == 'combined':
                             yhat = 0.5 * (np.sign(margin) + 1)
-                        elif loss == 'separate':
-                            yhat = np.round(margin)
+                        elif self.loss_type == 'separate':
+                            yhat = 2 * np.round(margin) - 1
                         self.metrics['validation']['loss'].append(l)
                         self.metrics['validation']['accuracy'].append(np.mean(yhat == dataTargetVa))
                         self.metrics['validation']['ROC_AUC'].append(roc_auc_score(dataTargetVa,
@@ -304,18 +310,24 @@ class binaryCadreModel(object):
         ## E[n,y,m] = e^m_y(x^n)
         ## cadre-wise prediction scores
         E = tf.add(tf.matmul(Xpredict, W), W0, name='E')
+        bstCd = tr.argmax(G, axis=1, name='bestCadre')
         
-        ## F[n] = f_k(x^n)
-        F = tf.reduce_sum(G * E, name='F', axis=1, keepdims=True)
+        if self.loss_type == 'combined':
+            F = tf.reduce_sum(G*E, name='F', axis=1, keepdims=True)
+            Yhat = 0.5 * (tf.sign(F) + 1)
+            
+            ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
+            error_terms = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=F)
+            
+            loss_score = tf.reduce_mean(error_terms)
+        elif self.loss_type == 'separate':
+            error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
+                                       labels=tf.squeeze(Y), logits=tf.transpose(E)))
+            
+            F = tf.reduce_mean(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            
+            loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
-        ## predicted label
-        Yhat = 0.5 * (tf.sign(F) + 1)
-        ## predicted cadre
-        bstCd = tf.argmax(G, axis=1, name='bestCadre')
-        
-        ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
-        error_terms = tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=F)
-        loss_score = tf.reduce_mean(error_terms)
         l2_d = self.lambda_d * (1 - self.alpha_d) * tf.reduce_sum(d**2)
         l2_W = self.lambda_W * (1 - self.alpha_W) * tf.reduce_sum(W**2)
         l1_d = self.lambda_d * self.alpha_d * tf.reduce_sum(tf.abs(d))
