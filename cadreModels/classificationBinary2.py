@@ -369,6 +369,9 @@ class binaryCadreModel(object):
         elif self.loss_type == 'separate':
             target = 2 * Dnew.loc[:,[self.targetCol]].values - 1        
         margin, label, __, __, loss = self.predictFull(Dnew)
+        print('target', target.shape, np.unique(target))
+        print('label', label.shape, np.unique(label))
+        print('margin', margin.shape, margin.min(), margin.max())
         
         accuracy = np.mean(target == label)
         ROC_AUC = roc_auc_score(target, margin)
