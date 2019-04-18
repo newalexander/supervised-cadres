@@ -346,6 +346,12 @@ class binaryCadreModel(object):
         
         with tf.Session() as sess:
             tf.global_variables_initializer().run()
+            f, e, err = sess.run([F, E, error_terms], feed_dict={Xcadre: Dnew.loc[:,self.cadreFts].values,
+                                                                Xpredict: Dnew.loc[:,self.predictFts].values})
+            print('f', f.min(), f.max())
+            print('e', e.min(), e.max())
+            print('err', err.min(), err.max())
+            
             Fnew, Lnew, Gnew, mNew, loss = sess.run([F, Yhat, G, bstCd, loss_full], 
                                                      feed_dict={Xcadre: Dnew.loc[:,self.cadreFts].values,
                                                                 Xpredict: Dnew.loc[:,self.predictFts].values,
