@@ -235,11 +235,6 @@ class binaryCadreModel(object):
                         yhat = 0.5 * (np.sign(margin) + 1)
                     elif self.loss_type == 'separate':
                         yhat = 2 * np.round(margin) - 1
-                    print('yhat', yhat.shape)
-                    print('dataTarget', dataTarget.shape)
-                    print('yhat', pd.Series(np.squeeze(yhat)).value_counts())
-                    print('dataTarget', pd.Series(np.squeeze(dataTarget)).value_counts())
-                    print('margin', margin.shape, margin.min(), margin.max())
                     self.metrics['training']['loss'].append(l)
                     self.metrics['training']['accuracy'].append(np.mean(yhat == dataTarget))
                     self.metrics['training']['ROC_AUC'].append(roc_auc_score(dataTarget,
@@ -330,6 +325,7 @@ class binaryCadreModel(object):
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
             F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            Yhat = 2 * tf.round(F) - 1
             
             loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
