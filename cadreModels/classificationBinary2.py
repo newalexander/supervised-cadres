@@ -167,7 +167,7 @@ class binaryCadreModel(object):
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
-            F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            F = tf.reduce_sum(G * tf.nn.sigmoid(E), axis=1, keepdims=True)
             
             loss_score = tf.reduce_mean(tf.reduce_sum(G * error_terms, axis=1))
         
@@ -330,7 +330,7 @@ class binaryCadreModel(object):
             error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
                                        labels=tf.squeeze(Y), logits=tf.transpose(E)))
             
-            F = tf.reduce_sum(G * tf.nn.sigmoid(error_terms), axis=1, keepdims=True)
+            F = tf.reduce_sum(G * tf.nn.sigmoid(E), axis=1, keepdims=True)
             ## values of Yhat are in {-1, +1}
             Yhat = 2 * tf.round(F) - 1
             
