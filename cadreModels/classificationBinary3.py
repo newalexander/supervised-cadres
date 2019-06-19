@@ -20,7 +20,27 @@ def eNet(alpha, lam, v):
     """Elastic-net regularization penalty"""
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
                   (1-alpha) * tf.reduce_sum(tf.square(v)))
+
+def calcMargiProb(cadId, M):
+    """Returns p(M=j) in vector form"""
+    return np.array([np.sum(cadId == m) for m in range(M)]) / cadId.shape[0]
+
+def calcJointProb(G, cadId, M):
+    """Returns p(M=j, x in C_i) in matrix form"""
+    jointProbMat = np.zeros((M,M)) # p(M=j, x in C_i)
+    for i,j in it.product(range(M), range(M)):
+        jointProbMat[i,j] = np.sum(G[cadId==i,j])
+    jointProbMat /= G.shape[0]
+    return jointProbMat
     
+def calcCondiProb(jointProb, margProb):
+    """Returns p(M = j | x in C_i)"""
+    return np.divide(jointProb, margProb[:,None], out=np.zeros_like(jointProb), where=margProb[:,None]!=0)
+
+def estEntropy(condProb):
+    """Returns estimated entropy for each cadre"""
+    return -np.sum(ss.xlogy(condProb, condProb), axis=1) / np.log(2)
+
 class binaryCadreModel(object):
     
     def __init__(self, M=2, gamma=10., lambda_d=0.01, lambda_W=0.01,
@@ -327,6 +347,18 @@ class binaryCadreModel(object):
     def predictClass(self, Dnew):
         __, Lnew, __, __, __ = self.predictFull(Dnew)
         return Lnew
+    
+    def entropy(self, Xnew):
+        """Returns estimated entropy for each cadre"""
+        G, m = self.predictFull(Xnew)[1:]    
+        marg = calcMargiProb(m, self.M)
+        jont = calcJointProb(G, m,  self.M)
+        cond = calcCondiProb(jont, marg)
+        return estEntropy(cond)
+    
+    def weight_comparison(self):
+        """Returns estimate of between-cadre prediction weight diversity: 1 / P \sum_p StdDev(w^1_p, ..., w^M_p)"""
+        return self.W.std(axis=1).mean()
     
     def score(self, Dnew):
         target = Dnew.loc[:,[self.targetCol]].values
