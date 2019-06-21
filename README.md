@@ -44,9 +44,9 @@ If `data` is a `pandas.DataFrame` object and `target` is the column-name of `dat
 
 The files in the `examples` folder contain more in-depth examples. If you have questions, please email me at `newa` at `rpi` dot `edu`.
 
-## Hints
+## Hints and Tricks
 
-The SCM learning problem is nonconvex, and it can be ill-conditioned. Thus, training an SCM can be a more arduous task than, say, a support vector machine. Here are some helpful hints I've picked up.
+The SCM learning problem is nonconvex, and it can be ill-conditioned. Thus, training an SCM can be a more finicky and arduous task than, say, a support vector machine. Here are some helpful hints I've picked up.
 
 Data Preparation:
 - Continuous features should generally be standardized before training (with, e.g., `scipy.stats.zscore`)
@@ -64,3 +64,4 @@ Hyperparameters:
 - The most important hyperparameter to tune is the number of cadres `M`
 - It is best to supply a validation set `Dva` during training so you can monitor on-the-fly for overfitting or underfitting
 - You can mitigate overfitting and underfitting by increasing and decreasing, respectively, the `lambda_d` and `lambda_W` hyperparameters
+- The default `lambda_d` and `lambda_W` values seem to work best for fairly small and fairly noisy datasets. If your dataset is larger and less noisy, you may want to decrease them by a factor of ten.
