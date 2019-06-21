@@ -43,3 +43,24 @@ If `data` is a `pandas.DataFrame` object and `target` is the column-name of `dat
     scm.fit(data, target, progress=True)
 
 The files in the `examples` folder contain more in-depth examples. If you have questions, please email me at `newa` at `rpi` dot `edu`.
+
+## Hints
+
+The SCM learning problem is nonconvex, and it can be ill-conditioned. Thus, training an SCM can be a more arduous task than, say, a support vector machine. Here are some helpful hints I've picked up.
+
+Data Preparation:
+- Continuous features should generally be standardized before training (with, e.g., `scipy.stats.zscore`)
+- For scalar and multivariate regression, target columns should also be standardized
+- Categorical features should be expanded into binary dummy variables (with, e.g., `pd.get_dummies`)
+- If you only have binary features, you don't need to standardize them
+- If you have a mixture of binary and continuous features, it is probably best to standardize all of them
+- For binary classification, the `target` column should take values of either 0 or 1
+- For multilabel classification, the `target` column should take values of `0, 1, ..., L-1`, where `L` is the number of classes
+
+Hyperparameters:
+- If the training process keeps returning `nan` values for loss, the most likely reasons are that either your features haven't been standardized, or the `gamma` cadre assignment sharpness hyperparameter is too large
+- I have found that the default `gamma = 10` works well when the number of nonzero features an observation has is in the tens
+- If an observation typically has hundreds or more nonzero features, you may need to decrease `gamma` to `gamma = 1` or `gamma = 0.1`
+- The most important hyperparameter to tune is the number of cadres `M`
+- It is best to supply a validation set `Dva` during training so you can monitor on-the-fly for overfitting or underfitting
+- You can mitigate overfitting and underfitting by increasing and decreasing, respectively, the `lambda_d` and `lambda_W` hyperparameters
