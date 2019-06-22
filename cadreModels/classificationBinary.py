@@ -1,4 +1,4 @@
-## classificationBinary3.py
+## classificationBinary.py
 ## binary classification cadres with logistic loss
 ## parameters have both l1 and l2 regularization, and l1 terms are handled with
 ## proximal gradient steps
@@ -14,7 +14,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from itertools import product
 from sklearn.metrics import roc_auc_score, average_precision_score
+from scipy.special import xlogy
 
 def eNet(alpha, lam, v):
     """Elastic-net regularization penalty"""
@@ -28,7 +30,7 @@ def calcMargiProb(cadId, M):
 def calcJointProb(G, cadId, M):
     """Returns p(M=j, x in C_i) in matrix form"""
     jointProbMat = np.zeros((M,M)) # p(M=j, x in C_i)
-    for i,j in it.product(range(M), range(M)):
+    for i,j in product(range(M), range(M)):
         jointProbMat[i,j] = np.sum(G[cadId==i,j])
     jointProbMat /= G.shape[0]
     return jointProbMat
@@ -39,13 +41,13 @@ def calcCondiProb(jointProb, margProb):
 
 def estEntropy(condProb):
     """Returns estimated entropy for each cadre"""
-    return -np.sum(ss.xlogy(condProb, condProb), axis=1) / np.log(2)
+    return -np.sum(xlogy(condProb, condProb), axis=1) / np.log(2)
 
 class binaryCadreModel(object):
     
     def __init__(self, M=2, gamma=10., lambda_d=0.01, lambda_W=0.01,
                  alpha_d=0.9, alpha_W=0.9, Tmax=10000, record=100, 
-                 eta=2e-3, Nba=64, eps=1e-3):
+                 eta=2e-3, Nba=64, eps=1e-3, termination_metric='ROC_AUC'):
         ## hyperparameters / structure
         self.M = M                # number of cadres
         self.gamma = gamma        # cadre assignment sharpness
@@ -60,6 +62,7 @@ class binaryCadreModel(object):
         self.eta = eta       # initial stepsize
         self.Nba = Nba       # minibatch size
         self.eps = eps       # convergence tolerance 
+        self.termination_metric = termination_metric
         ## parameters
         self.W = 0     # regression weights
         self.W0 = 0    # regression biases
@@ -81,6 +84,7 @@ class binaryCadreModel(object):
                                       'PR_AUC': []}}
         self.time = [] # times
         self.proportions = [] # cadre membership proportions during training
+        self.termination_reason = None # why training stopped
     
     def get_params(self, deep=True):
         return {'M': self.M, 'gamma': self.gamma, 'lambda_d': self.lambda_d, 
@@ -198,6 +202,14 @@ class binaryCadreModel(object):
         ####################
         with tf.Session() as sess:
             tf.global_variables_initializer().run()
+            
+            if progress:
+                if dataVa is not None:
+                    print('numbers being printed:', 
+                          'SGD iteration, training loss, training accuracy, validation loss, validation accuracy, time')
+                else:
+                    print('numbers being printed:',
+                          'SGD iteration, training loss, training accuracy, time')
 
             t0 = time.time()
             ## perform optimization
@@ -215,9 +227,9 @@ class binaryCadreModel(object):
                                                Xpredict: dataPredict[inds,:],
                                                Y: target_tr[inds,:],
                                                lambda_Ws: cadre_counts,
-                                               eta: self.eta})
+                                               eta: self.eta / np.sqrt(t+1)})
                 ## take proximal gradient step
-                sess.run([thresh_d, thresh_W], feed_dict={eta: self.eta, lambda_Ws: cadre_counts})
+                sess.run([thresh_d, thresh_W], feed_dict={eta: self.eta / np.sqrt(t+1), lambda_Ws: cadre_counts})
                 # record-keeping        
                 if not t % self.record:
                     if progress:
@@ -274,7 +286,24 @@ class binaryCadreModel(object):
                                                                                    margin))
                         self.metrics['validation']['PR_AUC'].append(average_precision_score(dataTargetVa,
                                                                                             margin))
-                        
+                    if dataVa is not None:
+                        if len(self.time) > 1:
+                            last_metric = self.metrics['validation'][self.termination_metric][-1]
+                            second_last_metric = self.metrics['validation'][self.termination_metric][-2]
+                            if np.abs(last_metric - second_last_metric) < self.eps:
+                                self.termination_reason = 'lack of sufficient decrease in validation ' + self.termination_metric
+                                break
+                    else:
+                        if len(self.time) > 1:
+                            last_metric = self.metrics['training'][self.termination_metric][-1]
+                            second_last_metric = self.metrics['training'][self.termination_metric][-2]
+                            if np.abs(last_metric - second_last_metric) < self.eps:
+                                self.termination_reason = 'lack of sufficient decrease in training ' + self.termination_metric
+                                break
+            if self.termination_reason == None:
+                self.termination_reason = 'model took ' + str(self.Tmax) + ' SGD steps'
+            if progress:
+                print('training has terminated because: ' + str(self.termination_reason))
             self.C, self.d, self.W, self.W0 = C.eval(), d.eval(), W.eval(), W0.eval()
             self.C = pd.DataFrame(self.C, index=self.cadreFts)
             self.d = pd.Series(self.d, index=self.cadreFts)
@@ -344,13 +373,24 @@ class binaryCadreModel(object):
                                                                 Y: Dnew.loc[:,[self.targetCol]]})
         return Fnew, Lnew, Gnew, mNew, loss
    
+    def predictMargin(self, Dnew):
+        """Returns classification scores for new data"""
+        Fnew, __, __, __, __ = self.predictFull(Dnew)
+        return Fnew
+
     def predictClass(self, Dnew):
+        """Returns predicted labels for new data"""
         __, Lnew, __, __, __ = self.predictFull(Dnew)
         return Lnew
     
+    def predictCadre(self, Dnew):
+        """Returns predicted cadre for new data"""
+        __, __, __, mNew, __ = predictFull(Dnew)
+        return mNew
+    
     def entropy(self, Xnew):
         """Returns estimated entropy for each cadre"""
-        G, m = self.predictFull(Xnew)[1:]    
+        __, __, G, m, __ = self.predictFull(Xnew)   
         marg = calcMargiProb(m, self.M)
         jont = calcJointProb(G, m,  self.M)
         cond = calcCondiProb(jont, marg)
@@ -361,11 +401,13 @@ class binaryCadreModel(object):
         return self.W.std(axis=1).mean()
     
     def score(self, Dnew):
+        """Returns classification rate for new data"""
         target = Dnew.loc[:,[self.targetCol]].values
         Lnew = self.predictClass(Dnew)
         return np.mean(target == Lnew)
     
     def scoreMetrics(self, Dnew):
+        """Returns goodness-of-fit metrics for new data as pd.DataFrame"""
         target = Dnew.loc[:,[self.targetCol]].values        
         margin, label, __, __, loss = self.predictFull(Dnew)
         
