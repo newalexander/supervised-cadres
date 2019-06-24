@@ -1,22 +1,22 @@
 ## kClassification.py
 ## K-label classification cadres
 
+## NOTE: This file is currently nonfunctional.
+
 from __future__ import division, print_function, absolute_import
 
 import time
 import numpy as np
 import tensorflow as tf
+import utility as u
 
-def eNet(alpha, lam, v):
-    """Elastic-net regularization penalty"""
-    return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
-                  (1-alpha) * tf.reduce_sum(tf.square(v)))
+from itertools import product
     
-class kClassCadreModel(object):
+class multilabelCadreModel(object):
     
     def __init__(self, M=2, gamma=10., lambda_d=0.01, lambda_W=0.01,
                  alpha_d=0.9, alpha_W=0.9, Tmax=10000, record=100, 
-                 eta=2e-3, Nba=50, eps=1e-3):
+                 eta=2e-3, Nba=64, eps=1e-3, termination_metric='accuracy'):
         ## hyperparameters / structure
         self.M = M                # number of cadres
         self.gamma = gamma        # cadre assignment sharpness
@@ -31,20 +31,25 @@ class kClassCadreModel(object):
         self.eta = eta       # initial stepsize
         self.Nba = Nba       # minibatch size
         self.eps = eps       # convergence tolerance 
+        self.termination_metric = termination_metric
         ## parameters
         self.W = 0     # regression weights
         self.W0 = 0    # regression biases
         self.C = 0     # cadre centers
         self.d = 0     # cadre assignment weights
         ## data
-        self.X = None       # copy of input data
-        self.Y = None       # copy of target values
-        self.columns = None # column-names
+        self.data = None       # pd.DataFrame containing features and response
+        self.cadreFts = None   # pd.Index of column-names giving features used for cadre assignment
+        self.predictFts = None # pd.Index of column-names giving features used for target-prediction
+        self.targetCol = None  # string column-name of response variable
         ## outputs
-        self.loss = [] # loss trajectory
-        self.accs = [] # accuracy trajectory
-        self.accsVa = [] # validation accuracy trajectory
+        self.metrics = {'training': {'loss': [],
+                                     'accuracy': []},
+                        'validation': {'loss': [],
+                                      'accuracy': []}}
         self.time = [] # times
+        self.proportions = [] # cadre membership proportions during training
+        self.termination_reason = None # why training stopped
     
     def get_params(self, deep=True):
         return {'M': self.M, 'gamma': self.gamma, 'lambda_d': self.lambda_d, 
@@ -57,18 +62,39 @@ class kClassCadreModel(object):
             setattr(self, parameter, value)
         return self
         
-    def fit(self, Xtr, Ytr, Xva=None, Yva=None, names=None, seed=16162, store=False):
+    def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
+            seed=16162, store=False, progress=False):
         np.random.seed(seed)
         """Fits multilabel classification cadre model"""
-        if names is not None:
-            self.columns = names
-            
-        (Ntr, P), K = Xtr.shape, np.unique(Ytr).shape[0]#Ytr.shape[1]
-        # number of observations, features, labels
+         ## store categories of column names
+        self.targetCol = targetCol
+        if cadreFts is not None:
+            self.cadreFts = cadreFts
+        else:
+            self.cadreFts = data.drop(targetCol, axis=1).columns
+        if predictFts is not None:
+            self.predictFts = predictFts
+        else:
+            self.predictFts = data.drop(targetCol, axis=1).columns
+        ## get dataset attributes
         self.fitted = True
         if store:
-            self.X = Xtr
-            self.Y = Ytr
+            self.data = data
+        Pcadre, Ppredict, Ntr = self.cadreFts.shape[0], self.predictFts.shape[0], data.shape[0]
+            
+        ## split data into separate numpy arrays for faster access
+        ## features for cadre-assignment
+        dataCadre = data.loc[:,self.cadreFts].values
+        ## features for target-prediction
+        dataPredict = data.loc[:,self.predictFts].values
+        ## target feature
+        dataTarget = data.loc[:,[self.targetCol]].values
+        K = np.unique(dataTarget).shape[0]
+        
+        if dataVa is not None:
+            dataCadreVa = dataVa.loc[:,self.cadreFts].values
+            dataPredictVa = dataVa.loc[:,self.predictFts].values
+            dataTargetVa = dataVa.loc[:,[self.targetCol]].values
         
         ############################################
         ## tensorflow parameters and placeholders ##
@@ -76,39 +102,43 @@ class kClassCadreModel(object):
         tf.reset_default_graph()
     
         ## cadre centers parameter
-        C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(P,self.M)), 
+        C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Pcadre,self.M)), 
                             dtype=tf.float32, name='C')
         ## cadre determination weights parameter
-        d = tf.Variable(np.random.uniform(size=(P)), dtype=tf.float32, name='d')
+        d = tf.Variable(np.random.uniform(size=(Pcadre)), dtype=tf.float32, name='d')
         
         ## regression hyperplane weights parameter
-        W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(K,P,self.M)), 
+        W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(K,Ppredict,self.M)), 
                             dtype=tf.float32, name='W')
         ## regression hyperplane bias parameter
         W0 = tf.Variable(tf.zeros(shape=(K,self.M), dtype=tf.float32), 
                              dtype=tf.float32, name='W0')
     
-        X = tf.placeholder(dtype=tf.float32, shape=(None,P), name='X')
+        Xcadre = tf.placeholder(dtype=tf.float32, shape=(None,Pcadre), name='Xcadre')
+        Xpredict = tf.placeholder(dtype=tf.float32, shape=(None,Ppredict), name='Xpredict')
         Y = tf.placeholder(dtype=tf.int32, shape=(None, ), name='Y')
+        eta = tf.placeholder(dtype=tf.float32, shape=(), name='eta')
+        lambda_Ws = tf.placeholder(dtype=tf.float32, shape=(self.M,), name='lambda_Ws')
         
         ## T[n,m] = ||x^n - c^m||^2_D
         T = tf.einsum('npm,p->nm', 
-              tf.square(tf.map_fn(lambda x: tf.expand_dims(x,1) - C, X)), 
-              tf.abs(d))
+              tf.square(tf.map_fn(lambda x: tf.expand_dims(x,1) - C, Xcadre)), 
+              d)
                 
         ## G[n,m] = g_m(x^n)
         ##        = 1 / sum_m' exp(gamma(T[n,m] - T[n,m']))
         G = 1 / tf.map_fn(lambda t: 
                       tf.reduce_sum(tf.exp(self.gamma*(tf.expand_dims(t,1) - 
-                                             tf.expand_dims(t,0))), axis=1), T, name='G')                 
+                                             tf.expand_dims(t,0))), axis=1), T, name='G')
+        bstCd = tf.argmax(G, axis=1, name='bestCadre')
 
         ## E[n,y,m] = e^m_y(x^n)
-        E = tf.add(tf.einsum('np,kpm->nkm', X, W), W0, name='E')
+        E = tf.add(tf.einsum('np,kpm->nkm', Xpredict, W), W0, name='E')
         
         ## F[n,k] = f_k(x^n)
         F = tf.einsum('nm,nkm->nk', G, E, name='F')
         Yhat = tf.argmax(F, axis=1)
-
+        
         ## L = 1 / N sum_n log(p(y[n] | x[n])) + reg(Theta)
         L = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=Y, logits=F)) + eNet(self.alpha_d, self.lambda_d, d) + eNet(self.alpha_W, self.lambda_W, W)
         opt = tf.train.AdamOptimizer(learning_rate=self.eta)
