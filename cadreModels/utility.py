@@ -1,6 +1,12 @@
 ## utility.py
 ## various utility functions used by all SCM functions
 
+import numpy as np
+import tensorflow as tf
+
+from itertools import product
+from scipy.special import xlogy
+
 def eNet(alpha, lam, v):
     """Elastic-net regularization penalty"""
     return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
