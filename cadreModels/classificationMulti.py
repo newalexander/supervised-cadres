@@ -1,7 +1,7 @@
 ## kClassification.py
-## K-label classification cadres
+## K-label classification cadres with cross-entropy loss
 
-## NOTE: This file is currently nonfunctional.
+## NOTE: This file needs to be tested and should get an example analysis notebook.
 
 from __future__ import division, print_function, absolute_import
 
