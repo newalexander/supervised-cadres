@@ -13,35 +13,11 @@ import time
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import utility as u
 
 from itertools import product
 from sklearn.metrics import roc_auc_score, average_precision_score
 from scipy.special import xlogy
-
-def eNet(alpha, lam, v):
-    """Elastic-net regularization penalty"""
-    return lam * (alpha * tf.reduce_sum(tf.abs(v)) + 
-                  (1-alpha) * tf.reduce_sum(tf.square(v)))
-
-def calcMargiProb(cadId, M):
-    """Returns p(M=j) in vector form"""
-    return np.array([np.sum(cadId == m) for m in range(M)]) / cadId.shape[0]
-
-def calcJointProb(G, cadId, M):
-    """Returns p(M=j, x in C_i) in matrix form"""
-    jointProbMat = np.zeros((M,M)) # p(M=j, x in C_i)
-    for i,j in product(range(M), range(M)):
-        jointProbMat[i,j] = np.sum(G[cadId==i,j])
-    jointProbMat /= G.shape[0]
-    return jointProbMat
-    
-def calcCondiProb(jointProb, margProb):
-    """Returns p(M = j | x in C_i)"""
-    return np.divide(jointProb, margProb[:,None], out=np.zeros_like(jointProb), where=margProb[:,None]!=0)
-
-def estEntropy(condProb):
-    """Returns estimated entropy for each cadre"""
-    return -np.sum(xlogy(condProb, condProb), axis=1) / np.log(2)
 
 class binaryCadreModel(object):
     
@@ -391,10 +367,10 @@ class binaryCadreModel(object):
     def entropy(self, Xnew):
         """Returns estimated entropy for each cadre"""
         __, __, G, m, __ = self.predictFull(Xnew)   
-        marg = calcMargiProb(m, self.M)
-        jont = calcJointProb(G, m,  self.M)
-        cond = calcCondiProb(jont, marg)
-        return estEntropy(cond)
+        marg = u.calcMargiProb(m, self.M)
+        jont = u.calcJointProb(G, m,  self.M)
+        cond = u.calcCondiProb(jont, marg)
+        return u.estEntropy(cond)
     
     def weight_comparison(self):
         """Returns estimate of between-cadre prediction weight diversity: 1 / P \sum_p StdDev(w^1_p, ..., w^M_p)"""
