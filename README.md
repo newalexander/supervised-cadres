@@ -64,4 +64,5 @@ Hyperparameters:
 - The most important hyperparameter to tune is the number of cadres `M`
 - It is best to supply a validation set `Dva` during training so you can monitor on-the-fly for overfitting or underfitting
 - You can mitigate overfitting and underfitting by increasing and decreasing, respectively, the `lambda_d` and `lambda_W` hyperparameters
-- The default `lambda_d` and `lambda_W` values seem to work best for fairly small and fairly noisy datasets. If your dataset is larger and less noisy, you may want to decrease them by a factor of ten.
+- The default `lambda_d` and `lambda_W` values seem to work best for fairly small and fairly noisy datasets. If your dataset is larger and less noisy, you may want to decrease them by a factor of ten
+- The default `record=100` value is most useful when you're first exploring a problem. Especially if you have a large dataset, evaluating goodness-of-fit metrics on the entire dataset every 100 SGD steps can be kind of costly. If you're hyperparameter tuning, you may want to increase `record` to `1000`
