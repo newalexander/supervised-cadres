@@ -153,8 +153,9 @@ class binaryCadreModel(object):
         bstCd = tf.argmax(G, axis=1, name='bestCadre')
         
         ## observation-wise error terms (based on jensen's inequality)
-        error_terms = tf.reduce_sum(G * tf.exp(-Y * E), axis=1)
-        loss_score = tf.reduce_mean(error_terms)
+        cadre_error_terms = tf.transpose(tf.nn.sigmoid_cross_entropy_with_logits(
+                                         labels=tf.squeeze(Y), logits=tf.transpose(E)))
+        loss_score = tf.reduce_mean(tf.reduce_sum(G * cadre_error_terms, axis=1))
         
         ## regularization
         l2_d = self.lambda_d * (1 - self.alpha_d) * tf.reduce_sum(d**2)
