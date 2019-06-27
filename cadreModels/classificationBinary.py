@@ -153,7 +153,7 @@ class binaryCadreModel(object):
         bstCd = tf.argmax(G, axis=1, name='bestCadre')
         
         ## observation-wise error terms (based on jensen's inequality)
-        error_terms = tf.log(tf.reduce_sum(G * tf.exp(-Y * E), axis=1)_
+        error_terms = tf.log(tf.reduce_sum(G * tf.exp(-Y * E), axis=1))
         loss_score = tf.reduce_mean(error_terms)
         
         ## regularization
