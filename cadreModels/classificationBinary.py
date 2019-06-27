@@ -74,7 +74,7 @@ class binaryCadreModel(object):
         return self
         
     def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
-            seed=16162, store=False, progress=False):
+            seed=16162, store=False, progress=False, inits=None):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -114,16 +114,28 @@ class binaryCadreModel(object):
         tf.reset_default_graph()
     
         ## cadre centers parameter
-        C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Pcadre,self.M)), 
+        if 'C' in inits:
+            C = tf.Variable(inits['C'], dtype=tf.float32, name='C')
+        else:
+            C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Pcadre,self.M)), 
                             dtype=tf.float32, name='C')
         ## cadre determination weights parameter
-        d = tf.Variable(np.random.uniform(size=(Pcadre)), dtype=tf.float32, name='d')
+        if 'd' in inits:
+            d = tf.Variable(inits['d'], dtype=tf.float32, name='d')
+        else:
+            d = tf.Variable(np.random.uniform(size=(Pcadre)), dtype=tf.float32, name='d')
         
         ## regression hyperplane weights parameter
-        W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Ppredict,self.M)), 
+        if 'W' in inits:
+            W = tf.Variable(inits['W'], dtype=tf.float32, name='W')
+        else:
+            W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Ppredict,self.M)), 
                             dtype=tf.float32, name='W')
         ## regression hyperplane bias parameter
-        W0 = tf.Variable(tf.zeros(shape=(self.M,), dtype=tf.float32), 
+        if 'W0' in inits:
+            W0 = tf.Variable(inits['W0'], dtype=tf.float32, name='W0')
+        else:
+            W0 = tf.Variable(tf.zeros(shape=(self.M,), dtype=tf.float32), 
                              dtype=tf.float32, name='W0')
     
         Xcadre = tf.placeholder(dtype=tf.float32, shape=(None,Pcadre), name='Xcadre')
