@@ -151,7 +151,7 @@ class multilabelCadreModel(object):
         l2_C = 1e-7 * tf.reduce_sum(C**2)
         
         ## loss that is fed into optimizer
-        loss_opt = loss_score + l2_d + l2_W + l1_d + l1_W + l2_C
+        loss_opt = loss_score + l2_d + l2_W + l2_C
         ## full loss, including l1 terms handled with proximal gradient
         loss_full = loss_opt + l1_d + l1_W
         optimizer = tf.train.AdamOptimizer(learning_rate=eta).minimize(loss_opt)
