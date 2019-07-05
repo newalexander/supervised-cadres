@@ -114,25 +114,25 @@ class binaryCadreModel(object):
         tf.reset_default_graph()
     
         ## cadre centers parameter
-        if 'C' in inits:
+        if inits is not None and 'C' in inits:
             C = tf.Variable(inits['C'], dtype=tf.float32, name='C')
         else:
             C = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Pcadre,self.M)), 
                             dtype=tf.float32, name='C')
         ## cadre determination weights parameter
-        if 'd' in inits:
+        if inits is not None and 'd' in inits:
             d = tf.Variable(inits['d'], dtype=tf.float32, name='d')
         else:
             d = tf.Variable(np.random.uniform(size=(Pcadre)), dtype=tf.float32, name='d')
         
         ## regression hyperplane weights parameter
-        if 'W' in inits:
+        if inits is not None and 'W' in inits:
             W = tf.Variable(inits['W'], dtype=tf.float32, name='W')
         else:
             W = tf.Variable(np.random.normal(loc=0., scale=0.1, size=(Ppredict,self.M)), 
                             dtype=tf.float32, name='W')
         ## regression hyperplane bias parameter
-        if 'W0' in inits:
+        if inits is not None and 'W0' in inits:
             W0 = tf.Variable(inits['W0'], dtype=tf.float32, name='W0')
         else:
             W0 = tf.Variable(tf.zeros(shape=(self.M,), dtype=tf.float32), 
