@@ -73,8 +73,8 @@ class binaryCadreModel(object):
             setattr(self, parameter, value)
         return self
         
-    def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, 
-            seed=16162, store=False, progress=False, inits=None):
+    def fit(self, data, targetCol, cadreFts=None, predictFts=None, dataVa=None, inits=None, 
+            seed=16162, store=False, progress=False):
         np.random.seed(seed)
         """Fits binary classification cadre model"""
         ## store categories of column names
@@ -407,3 +407,19 @@ class binaryCadreModel(object):
                              'accuracy': accuracy,
                              'ROC_AUC': ROC_AUC,
                              'PR_AUC': PR_AUC}, index=[0])
+    
+    def scoreMetricsCadre(self, Dnew):
+        """Returns subpopulation-specific goodness-of-fit metrics as pd.DataFrame"""
+        f, l, __, m, __ = self.predictFull(Dnew)
+        temp = pd.DataFrame({'f': np.squeeze(f), 'm': np.squeeze(m), 'l': np.squeeze(l), 'y': Dnew[self.targetCol].values})
+        scores = {'size': [], 'm': [], 'accuracy': [], 'ROC_AUC': [], 'PR_AUC': [], 'proportion': []}
+        for m in range(self.M):
+            temp_m = temp.loc[temp['m']==m,:]
+            if temp_m.shape[0] < 5: continue
+            scores['size'].append(temp_m.shape[0])
+            scores['m'].append(m)
+            scores['proportion'].append(temp_m['y'].mean())
+            scores['accuracy'].append(np.mean(temp_m['l'] == temp_m['y']))
+            scores['ROC_AUC'].append(roc_auc_score(temp_m['y'], temp_m['f']))
+            scores['PR_AUC'].append(average_precision_score(temp_m['y'], temp_m['f']))
+        return pd.DataFrame(scores)[['m', 'size', 'proportion', 'accuracy', 'ROC_AUC', 'PR_AUC']]
