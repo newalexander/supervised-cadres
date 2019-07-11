@@ -373,7 +373,7 @@ class binaryCadreModel(object):
     
     def predictCadre(self, Dnew):
         """Returns predicted cadre for new data"""
-        __, __, __, mNew, __ = predictFull(Dnew)
+        __, __, __, mNew, __ = self.predictFull(Dnew)
         return mNew
     
     def entropy(self, Xnew):
